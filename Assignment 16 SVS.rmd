@@ -1,0 +1,330 @@
+---
+title: "Assignment 16 Scott Van Slyck"
+author: "Scott Van Slyck"
+date: "4/21/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Install and load the packages needed for this assignment
+
+```{r echo = FALSE}
+# list of packages require for this assignment
+packages = c("tidyverse", "ggplot2")
+
+## now load or install and load
+package.check <- lapply(
+  packages,
+  FUN = function(x) {
+    if (!require(x, character.only=TRUE)) {
+      install.packages(x, dependencies=TRUE)
+      library(x, character.only=TRUE)
+    }
+  }
+)
+```
+
+# User-Defined Functions
+
+One of the great strengths of R is the user's ability to add functions. In fact, many of the functions in R are actually functions of functions. The structure of a function is given below.
+
+```
+function_name <- function(opt1, opt2, ... ){
+  # Comments
+  code
+  return(object)
+}
+
+```
+
+Objects in the function are local to the function. The object returned can be any data type.
+
+ - Vector
+ - Matrix
+ - Data Frame
+ - List
+ 
+Let's do a quick review.
+
+## Review of R Data Types
+
+**Question 1.** Create a numeric vector of all the odd integers from 1 to 99.
+
+```{r}
+num <- seq(1,99, by = 2)
+num
+```
+
+**Question 2.** Create a character vector of your two favorite flavors of ice cream.
+
+```{r}
+char <- c("butter pecan", "pralines and cream", "cherry")
+char
+```
+
+
+**Question 3.** Create a 3 by 3 numeric matrix.
+
+```{r}
+mat <- matrix(1:9, nrow = 3, ncol = 3)
+mat
+```
+
+**Question 4.** Create a list from the objects `num`, `char`, and `mat`.
+
+```{r}
+my_list <- list(num, char, mat)
+names(my_list) <- c("odd_integers", "ice_cream", "matrix")
+my_list
+```
+
+
+## Functions
+
+### 75th Percentile
+
+Now let's write a function that takes in a numeric vector and returns the value of the 75th percentile.
+
+```{r}
+get_q75 <- function(n){
+  # Purpose
+  # -------
+  # Return the 75th percentile of a numeric vector
+  # 
+  # Parameters
+  # ----------
+  # n : A numeric vector
+  q75 <- quantile(n)[4]
+  names(q75)[1] <- "75th Percentile"
+  return(q75)
+}
+```
+
+Now we can use our function. But first, we need a vector. The `sample` function takes a sample of the specified size from the elements of a vector of one or more elements using either with or without replacement.
+
+```{r}
+sample(1:100, 20)
+sample(letters, 26, replace = TRUE)
+```
+The `runif` function function in R programming language is used to generate a sequence of random following the uniform distribution. 
+
+```{r}
+runif(10)
+runif(10, -1, 1)
+```
+
+```{r}
+x <- sample(1:100, 20)
+get_q75(x)
+```
+
+```{r}
+x <- runif(20)
+get_q75(x)
+```
+Suppose we want to make sure that no one tries to use our function on a vector that's not numeric. We can add an `if` statement to make sure the data type of the input vector is numeric.
+
+```{r}
+get_q75 <- function(n){
+  # Purpose
+  # -------
+  # Return the 75th percentile of a numeric vector
+  # 
+  # Parameters
+  # ----------
+  # n : A numeric vector
+  if (!is.numeric(n)){
+    return("The vector argument must be of type numeric.")
+  } else {
+    q75 <- quantile(n)[4]
+    names(q75)[1] <- "75th Percentile"
+    return(q75)
+  }
+}
+```
+
+This should not work on a vector that is not numeric. Let;s check to be sure.
+
+```{r}
+x <- sample(letters, 25, replace = TRUE)
+get_q75(x)
+```
+
+### `titanic`
+
+```{r}
+url <- "https://raw.githubusercontent.com/mahmoudharding/dsc495/main/lectures/data/titanic.csv"
+titanic <- read_csv(url)
+```
+
+
+Our function works on a single numeric vector and will return a message if the vector is not numeric. But what if we want to use our function on a column from a data frame. We will need a built-in R function and method to complete our task.
+
+
+- Given a matrix or data frame n, `t()` returns the transpose of n as a matrix.
+
+- The `as.vector()` is a built-in R method that converts a matrix into a vector.
+
+
+```{r}
+get_q75 <- function(n){
+  # Purpose
+  # -------
+  # Return the 75th percentile of a numeric vector
+  # 
+  # Parameters
+  # ----------
+  # n : A numeric vector
+  if (is.data.frame(n) | is_tibble(n)){
+    n <-t(n)
+    n <- as.vector(n)
+  }
+  if (!is.numeric(n)){
+    return("The vector argument must be of type numeric.")
+  } else {
+    q75 <- quantile(na.omit(n))[4]
+    names(q75)[1] <- "75th Percentile"
+    return(q75)
+  }
+}
+```
+
+
+Now we can use our function on a column from a data frame.
+
+```{r}
+print("75th percentile of age on the Titanic")
+get_q75(titanic %>% select(Age))
+print("75th percentile of fare on the Titanic")
+get_q75(titanic %>% select(Fare))
+```
+
+### The Variance
+
+What if we wanted to return more than one object from our function. We can do that using a list. Let's write a function that returns the sample coefficient of variation along with the mean and standard deviation of a numeric vector.
+
+```{r}
+get_coefvar <- function(n){
+  # Purpose
+  # -------
+  # Return the coefficient of variation, mean, and
+  # standard deviation of a numeric vector
+  # 
+  # Parameters
+  # ----------
+  # n : A numeric vector
+  if (is.data.frame(n) | is_tibble(n)){
+    n <-t(n)
+    n <- as.vector(n)
+  }
+  if (!is.vector(n, mode = "numeric")){
+    return("The vector argument must be of type numeric.")
+  } else {
+    mean <- mean(n, na.rm = TRUE)
+    stdev <- sd(n, na.rm = TRUE)
+    cov <- mean/abs(stdev)
+    return(list(mean = mean, stdev = stdev, coef_var = cov))
+  }
+}
+
+```
+
+```{r}
+get_coefvar(titanic %>% select(Age))
+```
+## Simple Linear Regression
+
+Simple linear regression is used to predict a quantitative outcome $y$ on the basis of one single predictor variable $x$. The goal is to build a mathematical model (or formula) that defines $y$ as a function of the $x$ variable.
+
+```{r}
+mtcars %>% head()
+```
+
+```{r}
+g <- ggplot(data = mtcars, aes(x = wt, y = mpg))
+g + geom_point()
+```
+
+```{r}
+g + geom_point() + geom_smooth(method = "lm", se = FALSE)
+```
+
+The graph above suggests a linearly decreasing relationship between the weight and the mpg variables.
+
+It’s also possible to compute the correlation coefficient between the two variables using the R function `cor()`.
+
+```{r}
+cor(mtcars$wt, mtcars$mpg)
+```
+
+Simple linear regression tries to find the best line to predict mpg on the basis of the weight of the vehicle. The linear model equation can be written as $\text{mpg } = b_0 + b_1 \cdot \text{ weight}$. The R function `lm()` can be used to determine the beta coefficients of the linear model.
+
+```{r}
+mpg_model <- lm(mpg  ~ wt, data = mtcars)
+mpg_model
+```
+
+The equation for our linear model is $\hat{\text{mpg }} = 37.285 - 5.344 \cdot \text{ weight}$. To access the coefficients we can look at the structure of the `mpg_model` object.
+
+```{r}
+str(mpg_model)
+```
+
+Since this is a named list we can access the elements using the name. For example, if we want the `coefficients` we can type `mpg_model$coefficients`.
+
+```{r}
+mpg_model$coefficients
+paste("The y-intercept is", mpg_model$coefficients[1])
+paste("The slope is", mpg_model$coefficients [2])
+```
+
+We can use these values to overlay the graph of the line on the scatter plot.
+
+```{r}
+g + geom_point() + geom_abline(intercept = mpg_model$coefficients[1],
+                     slope = mpg_model$coefficients[2], color = "red")
+```
+The `mpg_model` object also contains summary information.
+
+```{r}
+summary(mpg_model)
+```
+
+## Exercises
+
+**Exercise 1.** In the code chunk below, write a function that will return the standardized values in a numeric vector.
+
+**Hint:** The formula to standardize a vector $z_i = \frac{x_i-\text{ mean of data}}{\text{standard deviation of data}}$
+
+```{r}
+standard_units <- function(n){
+  mean = mean(n, na.rm = TRUE)
+  stdev = sd(n, na.rm = TRUE)
+  return (n - mean)/stdev
+}
+```
+
+Check your function by running the code chunk below.
+
+```{r}
+standard_units(titanic$Age)
+```
+
+
+**Exercise 2.** During class we mde a scatter plot to visualize the relationship between `wt` (weight) and `mpg` (miles per gallon). In the code chunk below, make a scatter plot of the relationship between `hp` and `mpg`. Overlay the scatter plot with the line of besst fit.
+
+```{r}
+g <- ggplot(data = mtcars, aes(x = hp, y = mpg))
+g + geom_point() + geom_smooth(method = "lm", se = FALSE)
+```
+
+**Exercise 3.** In the code chunk below, fit a linear model using `hp` as the predictor $(x)$ and `mpg` as the response $(y)$. Display the summary information of the model object.
+
+
+```{r}
+hp_model <- lm(mpg ~ hp, data = mtcars)
+summary(hp_model)
+```
